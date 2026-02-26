@@ -1,0 +1,39 @@
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    ports:
+      - "8088:8080"
+    environment:
+      - BASE_URL=http://localhost:8088/
+      - INSTANCE_NAME=websearch
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: always
+
+  retriever:
+    build: .
+    container_name: websearch_retriever
+    ports:
+      - "8089:8080"
+    volumes:
+      - ./main.py:/app/main.py
+      - ./data:/data
+    environment:
+      - SEARXNG_URL=http://searxng:8080
+      - FETCH_TIMEOUT=20
+      - IMAGE_MAX_BYTES=8000000
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - searxng
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
