@@ -1,4 +1,10 @@
+version: '3'
+
+# Minimal docker-compose showing websearch retriever + dependencies.
+# Adapt to your own infrastructure as needed.
+
 services:
+  # SearXNG meta-search engine (no API keys, aggregates Google/Bing/DDG/PubMed)
   searxng:
     image: searxng/searxng:latest
     container_name: searxng
@@ -16,18 +22,27 @@ services:
       retries: 3
     restart: always
 
-  retriever:
-    build: .
+  # Web search retriever (FastAPI — search + page content extraction)
+  websearch:
+    build:
+      context: .
     container_name: websearch_retriever
     ports:
       - "8089:8080"
     volumes:
       - ./main.py:/app/main.py
       - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - SEARXNG_URL=http://searxng:8080
+      - EMBED_PROXY_URL=http://embed_proxy:8085    # Optional: for semantic re-ranking + chunking
+      - EMBED_PROXY_USER=admin
+      - EMBED_PROXY_PASS=${EMBED_PROXY_PASS}
+      - API_KEYS=${WEBSEARCH_API_KEY}               # Comma-separated Bearer tokens; empty = no auth
       - FETCH_TIMEOUT=20
       - IMAGE_MAX_BYTES=8000000
+      - USER_AGENT=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36
       - PYTHONUNBUFFERED=1
     depends_on:
       - searxng
